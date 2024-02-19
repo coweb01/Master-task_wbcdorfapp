@@ -113,7 +113,7 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
      * @var    string
      * @since  4.2.0
      */
-    private $url;
+    private  $url;
 
      /**
      * The response url params
@@ -204,7 +204,7 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
         $this->auth              = (string) $params->auth ?? 0;
         $this->authType          = (string) $params->authType ?? '';
         $this->authKey           = (string) $params->authKey ?? '';
-        $this->headers                 = [];
+        $this->headers           = [];
 
         if ($this->auth && $this->authType && $this->authKey) {
             $headers = ['Authorization' => $this->authType . ' ' . $this->authKey];
@@ -224,43 +224,47 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
 
         // @todo this handling must be rethought and made safe. stands as a good demo right now.
         $responseFilename = Path::clean($this->rootDirectory . "/task_{$id}_response.html");
+    
+        if ($responseCode == 200) {
+            switch ($this->source_type) {
+                case 'articles':
+                    if ($this->FetchAppNewsArticles($responseBody)) {
+                        try {
+                            $output = $this->WriteArticles(); 
+                            $responseStatus = 'OK';
+                            File::write($responseFilename, $output);
+                            $this->snapshot['output_file'] = $responseFilename;
+                        } catch (\Exception $e) {
+                            $this->logTask($e->getMessage(), 'error');
+                            return TaskStatus::KNOCKOUT;
+                        }
 
+                    } else {
+                        $this->logTask($this->getApplication()->getLanguage()->_('PLG_TASK_WBCDORFAPP_NO_ARTICLES_FOUND_IN_SOURCE'), 'warning');
+                        $responseStatus = 'NO_ARTICLES_FOUND';
+                       
+                    };
+                    break;                    
+                case 'events': 
+                    # code noch ergaenzen
+                    break;
+            }
+            
+        } else {
+            $this->logTask($this->getApplication()->getLanguage()->_('PLG_WBCDORFAPP_REQUESTS_TASK_GET_REQUEST_LOG_TIMEOUT'));
+            return TaskStatus::TIMEOUT;        
+        }
         
-        try {
-            if ($this->source_type == 'articles' && $responseCode == 200) {
-                $output = $this->FetchAppNewsArticles($responseBody);
-                File::write($responseFilename, $output);
-                $this->snapshot['output_file'] = $responseFilename;
-                $responseStatus                = 'OK';
-            } else {
-                return TaskStatus::KNOCKOUT;
-            }        
-           
-        } catch (\Exception $e) {
-            $this->logTask($this->getApplication()->getLanguage()->_('PLG_WBCDORFAPP_REQUESTS_TASK_GET_REQUEST_LOG_UNWRITEABLE_OUTPUT'), 'error');
-            $responseStatus = 'NOT_SAVED';
-        }
-
-        $this->logTask(sprintf($this->getApplication()->getLanguage()->_('PLG_WBCDORFAPP_REQUESTS_TASK_GET_REQUEST_LOG_RESPONSE'), $responseCode));
-
-        if ($response->code !== 200) {
-            return TaskStatus::KNOCKOUT;
-        }
-
-        if ($this->WriteArticles()) {
-
-            $this->snapshot['output']      = <<< EOF
+        $this->snapshot['output']      = <<< EOF
             ======= Task Output Body =======
-            > URL: $url
+            > URL:  $responseUrl
             > Response Code: $responseCode
             > Response: $responseStatus
-            > 
             EOF;
 
-            return TaskStatus::OK;
-        } else {
-            return TaskStatus::KNOCKOUT;
-        }
+        $this->logTask(sprintf($this->getApplication()->getLanguage()->_('PLG_WBCDORFAPP_REQUESTS_TASK_GET_REQUEST_LOG_RESPONSE'), $responseCode));
+        return TaskStatus::OK;
+        
     }
 
     /**
@@ -318,13 +322,10 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
                     $this->DAlist[$itemId]['image']['imageTitle']  = (!empty($assetReference->assetImage->texte)) ? $assetReference->assetImage->texte : '';
                     $this->DAlist[$itemId]['image']['imageQuelle'] = (!empty($assetReference->assetImage->source)) ? $assetReference->assetImage->source : '';
                 }
-                $output .= $itemId . "\n\n";
-                $output .= $item->text . "\n\n";
-                $output .= '<------------------------------------------>' . "\n";
             }
             
         }
-        return $output;
+        return true;
     }
 
     /**
@@ -344,7 +345,6 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
         $categories   = Categories::getInstance('content');
         $category     = $categories->get($this->AppCategory);
         if (!$category) {
-            throw new Exception(Text::_('PLG_TASK_WBCDORFAPP_KATEGORIE_NOT_EXIST') );
             return false;
         }
         
@@ -368,7 +368,6 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
                 'state'         => -2 // -2 = Trashed 
             ];
             if (!$articleModel->save($article)){
-                throw new Exception(Text::_('PLG_TASK_WBCDORFAPP_ARTICLE_ERROR_SAVE_STATE') . $article->id); 
                 continue;
             }
             
@@ -376,7 +375,6 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
        
         // delete article
         if ( !$articleModel->delete($articleIds)) {
-            throw new Exception(Text::_('PLG_TASK_WBCDORFAPP_ARTICLE_NOT_DELETE')); 
             return false;
         }
         return true;
@@ -393,7 +391,6 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
      */
     protected function WriteArticles() {
         if ($this->ExistCategory($this->AppCategory) === false) {
-            //$catId = CreateCategory();
             throw new Exception( Text::_('PLG_TASK_WBCDORFAPP_KATEGORIE_NOT_EXIST'));
             return false;
         } 
@@ -402,7 +399,10 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
             return false;
         }
         // Löschen aller vorhandenen Artikel in dieser Kategorie!
-        $this->DeleteArticles();
+        if ( $this->DeleteArticles() === false) {
+            throw new Exception(Text::_('PLG_TASK_WBCDORFAPP_ARTICLE_NOT_DELETE'));
+            return false;
+        }
 
         $app          = \Joomla\CMS\Factory::getApplication();
         $mvcFactory   = $app->bootComponent('com_content')->getMVCFactory();
@@ -440,11 +440,19 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
 
             if (!$articleModel->save($article))
             {
-                throw new Exception(Text::_('PLG_TASK_WBCDORFAPP_ARTICLE_ERROR_SAVE')); 
-                return false;          
+                $output .= $item['id'] . "\n\n";
+                $output .= $item['title'] . "\n\n";
+                $output .= 'Beitrag wurde nicht übernommen' . "\n\n";
+                $output .= '<------------------------------------------>' . "\n\n";
+                continue;          
             }
+            $output .= $item['id'] . "\n\n";
+            $output .= $item['title'] . "\n\n";
+            $output .= 'Beitrag wurde übernommen' . "\n\n";
+            $output .= '<------------------------------------------>' . "\n\n";
         }
-        return true;
+        
+        return $output;
     }
      /**
      * 
