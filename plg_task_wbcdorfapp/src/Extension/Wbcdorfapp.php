@@ -318,9 +318,8 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
                 $assetReference = $item->coverAssetReference;
                 if (!empty($assetReference->assetImage->assetImageUrl)){
                     $this->DAlist[$itemId]['image']['imageSrc']    = $assetReference->assetImage->assetImageUrl;
-                    $imageTitle = $assetReference->assetImage->text; 
-                    $this->DAlist[$itemId]['image']['imageTitle']  = (!empty($assetReference->assetImage->texte)) ? $assetReference->assetImage->texte : '';
-                    $this->DAlist[$itemId]['image']['imageQuelle'] = (!empty($assetReference->assetImage->source)) ? $assetReference->assetImage->source : '';
+                    $this->DAlist[$itemId]['image']['imageTitle']  = (!empty($assetReference->assetImage->text)) ? $assetReference->assetImage->text : '';
+                    $this->DAlist[$itemId]['image']['imageQuelle'] = (!empty($assetReference->assetImage->source)) ? TEXT::_('PLG_TASK_WBCDORFAPP_ARTICLE_IMAGE_QUELLE').$assetReference->assetImage->source : '';
                 }
             }
             
@@ -413,16 +412,34 @@ final class Wbcdorfapp extends CMSPlugin implements SubscriberInterface
 
             // Joomla Images 
             $images = array();
+            $img_alt = '';
+            $img_caption = '';
+            $img_no_alt = '';
+
             if (!empty($item['image'])) {
+
+                if ( empty($item['image']['imageTitle']) && empty($item['image']['imageQuelle'])) {
+                    $img_no_alt = 1;
+                } 
+                if (!empty($item['image']['imageTitle'])) {
+                    $img_alt = $item['image']['imageTitle'];
+                } 
+                if (!empty($item['image']['imageQuelle'])) {
+                    $img_caption = $item['image']['imageQuelle'];
+                    $img_alt    .= $item['image']['imageQuelle'];
+                }
+
                 $images = [
                     'image_intro'               => $item['image']['imageSrc'],
+                    'image_intro_alt'           => $img_alt,
+                    'image_intro_alt_empty'     => $img_no_alt,
                     'float_intro'               => '',
-                    'image_intro_alt'           => $item['image']['imageTitle'],
-                    'image_intro_caption'       => '',
+                    'image_intro_caption'       => $img_caption,
                     'image_fulltext'            => $item['image']['imageSrc'],
+                    'image_fulltext_alt'        => $img_alt,
                     'float_fulltext'            => '',
-                    'image_fulltext_alt'        => $item['image']['imageTitle'],
-                    'image_fulltext_caption'    => '',
+                    'image_fulltext_alt_empty'  => $img_no_alt,
+                    'image_fulltext_caption'    => $img_caption,
                 ];
                 $images = json_encode($images);
             }
