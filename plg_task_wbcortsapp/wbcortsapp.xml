@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension type="plugin" group="task" method="upgrade">
-	<name>PLG_WBCDORFAPP_REQUESTS</name>
+	<name>PLG_TASK_WBCDORFAPP_TASK_APICODO</name>
 	<author>das webconcept</author>
 	<creationDate>Februar 2024</creationDate>
 	<copyright>Copyright (C) 2005 - 2018 Open Source Matters. All rights reserved.</copyright>
 	<license>GNU General Public License version 2 or later; see LICENSE.txt</license>
 	<authorEmail>info@das-webconcept.de</authorEmail>
 	<authorUrl>www.das-webconcept.de</authorUrl>
-	<version>4.1</version>
-	<description>PLG_WBCDORFAPP_REQUESTS_XML_DESCRIPTION</description>
-	<namespace path="src">Joomla\Plugin\Task\Wbcdorfapp</namespace>
+	<version>4.1.0</version>
+	<description>PLG_TASK_WBCDORFAPP_TASK_APICODO_XML_DESCRIPTION</description>
+	<namespace path="src">Joomla\Plugin\Task\Wbcortsapp</namespace>
 	<files>
 		<folder plugin="wbcdorfapp">services</folder>
 		<folder>src</folder>
 		<folder>forms</folder>
 	</files>
 	<languages>
-        <language tag="de-DE">language/de-DE/plg_task_wbcdorfapp.ini</language>
-		<language tag="de-DE">language/de-DE/plg_task_wbcdorfapp.sys.ini</language>
-		<language tag="en-GB">language/en-GB/plg_task_wbcdorfapp.ini</language>
-		<language tag="en-GB">language/en-GB/plg_task_wbcdorfapp.sys.ini</language>
+        <language tag="de-DE">language/de-DE/plg_task_wbcortsapp.ini</language>
+		<language tag="de-DE">language/de-DE/plg_task_wbcortsapp.sys.ini</language>
+		<language tag="en-GB">language/en-GB/plg_task_wbcortsapp.ini</language>
+		<language tag="en-GB">language/en-GB/plg_task_wbcortsapp.sys.ini</language>
 	</languages>
 </extension>

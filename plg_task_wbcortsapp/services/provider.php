@@ -17,7 +17,7 @@ use Joomla\DI\Container;
 use Joomla\DI\ServiceProviderInterface;
 use Joomla\Event\DispatcherInterface;
 use Joomla\Http\HttpFactory;
-use Joomla\Plugin\Task\Wbcdorfapp\Extension\Wbcdorfapp;
+use Joomla\Plugin\Task\Wbcdorfapp\Extension\Wbcortsapp;
 
 return new class () implements ServiceProviderInterface {
     /**
@@ -34,9 +34,9 @@ return new class () implements ServiceProviderInterface {
         $container->set(
             PluginInterface::class,
             function (Container $container) {
-                $plugin = new Wbcdorfapp(
+                $plugin = new Wbcortsapp(
                     $container->get(DispatcherInterface::class),
-                    (array) PluginHelper::getPlugin('task', 'wbcdorfapp'),
+                    (array) PluginHelper::getPlugin('task', 'wbcortsapp'),
                     new HttpFactory(),
                     JPATH_ROOT . '/tmp'
                 );

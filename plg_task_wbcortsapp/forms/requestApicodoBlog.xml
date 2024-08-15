@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form>
+	<fields name="params">
+	
+		<fieldset name="task_params">
+			<field
+				name="source_url"
+				type="url"
+				label="PLG_TASK_WBCDORFAPP_TASK_APICODO_LABEL_REQUEST_URL"
+				required="true"
+				validate="url"
+				filter="url"
+			/>
+			<field name="appcategory" 
+				type="category" 
+				extension="com_content" 
+				label="PLG_TASK_WBCDORFAPP_TASK_APICODO_CATEGORY_LABEL" 
+				description="PLG_TASK_WBCDORFAPP_TASK_APICODO_CATEGORY_DESC" 
+			/>
+			<field name="apicodo_chapter"
+				type="text"
+				label="PLG_TASK_WBCDORFAPP_TASK_APICODO_LABEL_APICODO_CHAPTER_LABEL"
+				description="PLG_TASK_WBCDORFAPP_TASK_APICODO_DESC_APICODO_CHAPTER_DESC"
+			/>
+			<field name="maxendyear"
+				type="text"
+				default="5"
+				label="PLG_TASK_WBCDORFAPP_TASK_APICODO_LABEL_MAXDATE_LABEL"
+				description="PLG_TASK_WBCDORFAPP_TASK_APICODO_DESC_MAXDATE_DESC"
+				showon="source_type:eventcalendar"
+				validate="number"
+			/>	
+			<field
+				name="timeout"
+				type="number"
+				label="PLG_TASK_WBCDORFAPP_TASK_APICODO_LABEL_REQUEST_TIMEOUT"
+				min="1"
+				step="1"
+				default="120"
+				required="true"
+				filter="int"
+				validate="number"
+			/>
+			<field
+				name="auth"
+				type="radio"
+				label="PLG_TASK_WBCDORFAPP_TASK_APICODO_LABEL_AUTH"
+				layout="joomla.form.field.radio.switcher"
+				default="0"
+				required="true"
+				filter="integer"
+				>
+				<option value="0">JDISABLED</option>
+				<option value="1">JENABLED</option>
+			</field>
+			<field
+				name="authType"
+				type="list"
+				label="PLG_TASK_WBCDORFAPP_TASK_APICODO_LABEL_AUTH_HEADER"
+				showon="auth:1"
+				>
+				<option value="Bearer">PLG_TASK_WBCDORFAPP_TASK_APICODO_BEARER</option>
+				<option value="X-Joomla-Token">PLG_TASK_WBCDORFAPP_TASK_APICODO_JOOMLA_TOKEN</option>
+			</field>
+			<field
+				name="authKey"
+				type="text"
+				label="PLG_TASK_WBCDORFAPP_TASK_APICODO_LABEL_AUTH_KEY"
+				showon="auth:1"
+			/>
+		</fieldset>
+	</fields>
+</form>
