@@ -31,6 +31,7 @@ use Joomla\CMS\Date\Date;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Plugin\PluginHelper;
 use Joomla\CMS\Application\ApplicationHelper;
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\Registry\Registry;
 use RuntimeException;
 use Exception;
@@ -136,6 +137,13 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
     protected $SelectedChapters = array();
 
     /**
+     * The Image Directory
+     * @var    String
+     * 
+     */
+    protected $ImagesPath = '/images/wbcortsapp/';
+
+    /**
      * Max Endyear for Events
      *
      * @var    String
@@ -176,7 +184,15 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
         5 => 'FR',
         6 => 'SA'
     );
+    /**
+     * Days of Week Offset for RRule
+     *
+     * @var   Array
+     * @since  4.1.0
+     */
 
+     protected $ByDayofWeek = array( -1,1,2,3,4,5 );
+       
     /**
      * The site Url for API Call DPCalender
      *
@@ -406,6 +422,14 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
         $this->Token                  = (string) $this->params->get('Token');
         $this->AuthType               = (string) $this->params->get('AuthType');
         $this->source_type            = 'eventcalendar';
+        
+        // prüfen ob die Komponente DPCalendar installiert ist
+        $component_name = 'com_dpcalendar';
+
+        if (!ComponentHelper::isEnabled($component_name, true)) {
+            $this->logTask($this->getApplication()->getLanguage()->_('PLG_TASK_WBCDORFAPP_TASK_APICODO_DPCALENDAR_NOT_INSTALLED'));
+            return TaskStatus::NO_RUN;
+        }
 
         $http = (new HttpFactory())->getAvailableDriver();   
         // Url Joomla API Call     
@@ -458,8 +482,10 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
     
         if ($responseCode == 200) {
             if ($this->BuildItemArray($responseBody)) {
-                $this->WriteEvents();
-                return TaskStatus::OK;
+                if ($this->WriteEvents() == true) {
+                    return TaskStatus::OK;
+                }
+                return TaskStatus::KNOCKOUT;
             } 
             
         } else  {
@@ -531,6 +557,7 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
         }
         // Details Artikel / Events
         $save_itemid = 0;
+
         // alle Artikel / Events durchgehen
         foreach ($itemIds as $itemId) {
 
@@ -614,9 +641,9 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
         $this->DAlist[$itemId]['image'] = array();
         $coverAssetReference = $item->coverAssetReference;
         if (!empty($coverAssetReference->assetImage->assetImageUrl)){
-            $this->DAlist[$itemId]['image']['imageSrc']    = $coverAssetReference->assetImage->assetImageUrl;
-            $this->DAlist[$itemId]['image']['imageTitle']  = (!empty($coverAssetReference->assetImage->text)) ? $coverAssetReference->assetImage->text : '';
-            $this->DAlist[$itemId]['image']['imageQuelle'] = (!empty($coverAssetReference->assetImage->source)) ? TEXT::_('PLG_TASK_WBCDORFAPP_TASK_APICODO_ARTICLE_IMAGE_QUELLE').$coverAssetReference->assetImage->source : '';
+            if (!$this->SaveMedien($coverAssetReference, $itemId) ) {
+                return false;
+            }
         }
         // Bildergalerien wenn vorhanden
         $assetReferences = $item->assetReferences;
@@ -864,8 +891,9 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
      * 
      */
     protected function GetImages($coverImage) {
-       
+        
         $imagearray = array();
+        
         $imagearray['imageSrc']     = $coverImage->assetImageUrl;
         $imagearray['imageTitle']   = (!empty($coverImage->text)) ? $coverImage->text : '';
         $imagearray['imageQuelle']  = (!empty($coverImage->source)) ? TEXT::_('PLG_TASK_WBCDORFAPP_TASK_APICODO_ARTICLE_IMAGE_QUELLE').$coverImage->source : '';
@@ -895,11 +923,6 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
         $component      = $app->bootComponent('dpcalendar');
         $component_name = 'com_dpcalendar';
 
-        if (!$component instanceof DPCalendarComponent) {
-            $this->logTask($this->getApplication()->getLanguage()->_('PLG_TASK_WBCDORFAPP_TASK_APICODO_DPCALENDAR_NOT_INSTALLED'));
-            return false;
-        }
-
         // Prüfen ob die Kalender Kategorie existiert 
         $categoriesModel =  $app->bootComponent('categories')->getMVCFactory()->createModel('Categories', 'Administrator', ['ignore_request' => true]);
         $categoriesModel->setState('filter.extension', 'com_dpcalendar');
@@ -914,6 +937,7 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
             $catid    = $category->id;
         } else {
             // Alle vorhandenen Events in dieser Kategorie löschen!
+
             if (!$this->deleteEventsortsapp()) {
                 return false;
             }
@@ -1000,8 +1024,7 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
 		$component  = $app->bootComponent('dpcalendar');
 		$db         = Factory::getContainer()->get('DatabaseDriver');
 		$query      = $db->getQuery(true)->select('e.id')->from('#__dpcalendar_events e');
-		$query->where('e.catid in (' . $this->AppCalCategory . ')');
-
+		$query->where('e.catid in (' . $this->AppCalCategory . ') ');
 		$db->setQuery($query);
 
 		$result = $db->loadColumn();
@@ -1015,11 +1038,22 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
 			return true;
 		}
 
-		$this->logTask( (is_countable($result) ? count($result) : 0) . $this->getApplication()->getLanguage()->_('PLG_TASK_WBCDORFAPP_TASK_APICODO_EVENTS_DELETE'), 'debug');
-        // Events löschen
+        // Alle Events der Kategorie in den Papierkorb verschieben
 		$component->getMVCFactory()->createModel('Event', 'Administrator', ['ignore_request' => true])->publish($result, -2);
-		$component->getMVCFactory()->createModel('Event', 'Administrator', ['ignore_request' => true])->delete($result);
-		return true;
+	
+        // Events löschen. Alle Original Events und normale Termine löschen
+        $query      = $db->getQuery(true)->select('e.id')->from('#__dpcalendar_events e');
+		$query->where('e.catid in (' . $this->AppCalCategory . ') AND e.state = -2 AND e.original_id IN ( -1, 0 )');
+		$db->setQuery($query);
+
+		$result = $db->loadColumn();
+
+        if(!$component->getMVCFactory()->createModel('Event', 'Administrator', ['ignore_request' => true])->delete($result)) {
+            $this->logTask($this->getApplication()->getLanguage()->_('PLG_TASK_WBCDORFAPP_TASK_APICODO_EVENTS_NOT_DELETED'));
+        } else {
+            $this->logTask( (is_countable($result) ? count($result) : 0) . $this->getApplication()->getLanguage()->_('PLG_TASK_WBCDORFAPP_TASK_APICODO_EVENTS_DELETE'), 'debug');
+		}
+        return true;
 	}
 
     /**
@@ -1081,7 +1115,9 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
         // BYDAY
         if (!empty($recurrenceRule->byDay)) {
             foreach ($recurrenceRule->byDay as $day) {
-                $RuleItem .= $day->offset > 0 ? $day->offset : '';
+                if (in_array($day->offset, $this->ByDayofWeek)) {
+                    $RuleItem .= $day->offset;
+                }
                 $RuleItem .= $this->daysOfWeek[$day->dayOfWeek] . ',';
             }
             $RuleItem = rtrim($RuleItem, ','); // Entfernt das letzte Komma
@@ -1190,4 +1226,48 @@ final class Wbcortsapp extends CMSPlugin implements SubscriberInterface
         }
         return false;
     }
-}    
+    /**
+     * 
+     * Speichert die Bilder in lokalem Verzeichnis
+     *
+     * @return true/false
+     *
+     * @since 4.1.0
+     * 
+     */
+    protected function SaveMedien($coverAssetReference, $item) {
+
+        $imageUrl = $coverAssetReference->assetImage->assetImageUrl;
+        $imageTitle = !empty($coverAssetReference->assetImage->text) ? $coverAssetReference->assetImage->text : '';
+        $imageQuelle = !empty($coverAssetReference->assetImage->source) ? TEXT::_('PLG_TASK_WBCDORFAPP_TASK_APICODO_ARTICLE_IMAGE_QUELLE') . $coverAssetReference->assetImage->source : '';
+    
+        // Verzeichnis für Bilder
+        $imagesDir = JPATH_ROOT . $this->$ImagesPath;
+        if (!file_exists($imagesDir)) {
+            mkdir($imagesDir, 0755, true);
+        }
+    
+        // Bild herunterladen und lokal speichern
+        $imageContent = file_get_contents($imageUrl);
+
+        if ($imageContent === false) {
+            return false;
+        }
+    
+        // Dateiname für das Bild
+        $imagePath = $imagesDir . basename($imageUrl);
+        // Überprüfen, ob die Datei bereits vorhanden ist
+        if (!file_exists($imagePath)) {
+            // Datei ist noch nicht  vorhanden, dann speichern
+            $saveResult = file_put_contents($imagePath, $imageContent);
+            if ($saveResult === false) {
+                return false;
+            }
+        }
+        
+        $this->DAlist[$itemId]['image']['imageSrc']    = Uri::root(true) . $this->$ImagesPath . basename($imageUrl);
+        $this->DAlist[$itemId]['image']['imageTitle']  = $imageTitle;
+        $this->DAlist[$itemId]['image']['imageQuelle'] = $imageQuelle;
+        return true;
+    }   
+} 

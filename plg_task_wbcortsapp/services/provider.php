@@ -17,7 +17,7 @@ use Joomla\DI\Container;
 use Joomla\DI\ServiceProviderInterface;
 use Joomla\Event\DispatcherInterface;
 use Joomla\Http\HttpFactory;
-use Joomla\Plugin\Task\Wbcdorfapp\Extension\Wbcortsapp;
+use Joomla\Plugin\Task\Wbcortsapp\Extension\Wbcortsapp;
 
 return new class () implements ServiceProviderInterface {
     /**
